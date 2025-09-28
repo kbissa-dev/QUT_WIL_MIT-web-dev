@@ -17,9 +17,9 @@ docker compose up -d
 
 ## Development URLs
 
-Front-end app: <http://localhost:3000/>
-API Documentation: <http://localhost/docs>
-Alternative API Docs: <http://localhost/redoc>
+- Front-end app: <http://localhost:3000/>  
+- API Documentation: <http://localhost/docs>  
+- Alternative API Docs: <http://localhost/redoc>
 
 ## Local Development
 
