@@ -12,6 +12,7 @@ Run the entire stack with:
 git clone https://github.com/RenukaSharma/QUT_WIL_MIT.git
 cd QUT_WIL_MIT
 cd src
+docker compose build
 docker compose up -d
 ```
 

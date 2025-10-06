@@ -1,4 +1,5 @@
 from typing import Any, Union
+import logging
 
 from bson import ObjectId
 
@@ -16,6 +17,8 @@ from app.utilities import (
 )
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -102,22 +105,33 @@ async def login_with_oauth2(
     """
     First step with OAuth2 compatible token login, get an access token for future requests.
     """
-    user = await crud.user.authenticate(db, email=form_data.username, password=form_data.password)
-    if not form_data.password or not user or not crud.user.is_active(user):
-        raise HTTPException(status_code=400, detail="Login failed; incorrect email or password")
-    # Check if totp active
-    refresh_token = None
-    force_totp = True
-    if not user.totp_secret:
-        # No TOTP, so this concludes the login validation
-        force_totp = False
-        refresh_token = security.create_refresh_token(subject=user.id)
-        await crud.token.create(db=db, obj_in=refresh_token, user_obj=user)
-    return {
-        "access_token": security.create_access_token(subject=user.id, force_totp=force_totp),
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-    }
+    try:
+        user = await crud.user.authenticate(db, email=form_data.username, password=form_data.password)
+        if not user:
+            logger.warning(f"Authentication failed for user: {form_data.username}")
+            raise HTTPException(status_code=400, detail="Incorrect email or password")
+        
+        if not crud.user.is_active(user):
+            logger.warning(f"Inactive user attempted login: {form_data.username}")
+            raise HTTPException(status_code=400, detail="Inactive user")
+
+        # Check if totp active
+        refresh_token = None
+        force_totp = True
+        if not user.totp_secret:
+            # No TOTP, so this concludes the login validation
+            force_totp = False
+            refresh_token = security.create_refresh_token(subject=user.id)
+            await crud.token.create(db=db, obj_in=refresh_token, user_obj=user)
+
+        return {
+            "access_token": security.create_access_token(subject=user.id, force_totp=force_totp),
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+        }
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}")
+        raise HTTPException(status_code=400, detail="Login failed")
 
 
 @router.post("/totp", response_model=schemas.Token)

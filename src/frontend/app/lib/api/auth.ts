@@ -46,16 +46,15 @@ export const apiAuth = {
     username: string,
     password: string,
   ): Promise<ITokenResponse> {
-    // Version of this: https://github.com/unjs/ofetch/issues/37#issuecomment-1262226065
-    // useFetch is borked, so you'll need to ignore errors https://github.com/unjs/ofetch/issues/37
     const params = new URLSearchParams();
     params.append("username", username);
     params.append("password", password);
     const res = await fetch(`${apiCore.url}/login/oauth`, {
       method: "POST",
       body: params,
-      // @ts-ignore
-      headers: { "Content-Disposition": params },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
     });
     return (await jsonify(res)) as ITokenResponse;
   },

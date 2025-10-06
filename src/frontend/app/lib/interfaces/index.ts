@@ -36,3 +36,5 @@ export type {
   INotification,
   IErrorResponse,
 };
+
+export * from './member';
