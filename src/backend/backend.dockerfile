@@ -1,10 +1,22 @@
 FROM ghcr.io/br3ndonland/inboard:fastapi-0.51-python3.11
 
+# Install system dependencies for OpenCV
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
 # Use file.name* in case it doesn't exist in the repo
 COPY ./app/ /app/
 WORKDIR /app/
 ENV HATCH_ENV_TYPE_VIRTUAL_PATH=.venv
+ENV PIP_DEFAULT_TIMEOUT=100
+
 RUN hatch env prune && hatch env create production && pip install --upgrade setuptools
+# Install PyTorch CPU-only version first (faster and smaller)
+RUN .venv/bin/pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+RUN .venv/bin/pip install --no-deps -e .
+RUN .venv/bin/pip install numpy scipy opencv-python-headless
 
 # /start Project-specific dependencies
 # RUN apt-get update && apt-get install -y --no-install-recommends \
