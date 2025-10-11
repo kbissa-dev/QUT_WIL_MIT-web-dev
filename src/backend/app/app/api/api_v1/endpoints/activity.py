@@ -24,10 +24,15 @@ import os
 # Print current working directory
 print("Current working directory:", os.getcwd())
 # Load model on startup
-evaluator = MultiModalEvaluator(
-    model_path="./app/best_multimodal_model.pth",
-    device=None  # Auto-detect
-)
+model_path = "./app/best_multimodal_model.pth"
+if os.path.exists(model_path):
+    evaluator = MultiModalEvaluator(
+        model_path=model_path,
+        device=None  # Auto-detect
+    )
+else:
+    print(f"Model file not found at {model_path}. Model will not be loaded.")
+    evaluator = None
 
 # Connected WebSocket clients
 connected_clients: List[WebSocket] = []
@@ -51,11 +56,6 @@ async def broadcast_prediction(result: dict):
         success = await send_response(websocket=client, response=result)
         if not success:
             disconnected.append(client)
-    
-    # Remove disconnected clients
-    for client in disconnected:
-        connected_clients.remove(client)
-
 
 @router.post("/{member_id}")
 async def activity(
@@ -67,6 +67,9 @@ async def activity(
     depth_file: Optional[UploadFile] = File(None),
 ):
     """Predict action and push result to connected clients"""
+    
+    if evaluator is None:
+        raise HTTPException(400, "Model not loaded. Please check server logs.")
     
     if not any([skeleton_file, inertial_file, depth_file]):
         raise HTTPException(400, "At least one modality file must be provided")
