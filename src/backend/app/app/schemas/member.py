@@ -20,6 +20,9 @@ class MemberCreate(MemberBase):
             raise ValueError("Date of birth cannot be in the future")
         return v
 
+class MemberCreateWithID(MemberCreate):
+    id: UUID = Field(..., description="UUID of the member")
+
 class Member(MemberBase):
     id: UUID = Field(default_factory=uuid4)
 

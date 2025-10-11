@@ -7,17 +7,24 @@ import Link from "next/link";
 import AlertsButton from "./alerts/AlertsButton";
 import dynamic from "next/dynamic";
 import { siteName } from "../lib/utilities/generic";
+import { useAppSelector } from "../lib/hooks";
+import { RootState } from "../lib/store";
+import { profile } from "../lib/slices/authSlice";
+
 const AuthenticationNavigation = dynamic(
   () => import("./authentication/AuthenticationNavigation"),
   { ssr: false },
 );
 
 const navigation = [
-  { name: "Home", to: "/" },
-  // { name: "About", to: "/about" },
-  { name: "Members", to: "/members" },
-  // { name: "Authentication", to: "/authentication" },
-  // { name: "Blog", to: "/blog" },
+  { name: "Home", to: "/", requiresSuperUser: false },
+  // { name: "About", to: "/about", requiresSuperUser: false },
+  { name: "Members", to: "/members", requiresSuperUser: true },
+  { name: "Activity", to: "/activity", requiresSuperUser: true },
+  // { name: "Authentication", to: "/authentication", requiresSuperUser: false },
+  // { name: "Blog", to: "/blog", requiresSuperUser: false },
+  // Add moderation link that requires super user
+  // { name: "Moderation", to: "/moderation", requiresSuperUser: true },
 ];
 
 const renderIcon = (open: boolean) => {
@@ -28,14 +35,16 @@ const renderIcon = (open: boolean) => {
   }
 };
 
-const renderNavLinks = (style: string) => {
-  return navigation.map((nav) => (
-    <Link href={nav.to} key={nav.name} className={style}>
-      {nav.name}
-    </Link>
-  ));
-};
 export default function Navigation() {
+  // Get user details from Redux store
+  const currentProfile = useAppSelector((state: RootState) => profile(state));
+  const isSuperUser = currentProfile.is_superuser || false;
+
+  // Filter navigation based on user permissions
+  const filteredNavigation = navigation.filter(
+    (item) => !item.requiresSuperUser || isSuperUser
+  );
+
   return (
     <header>
       <Disclosure as="nav">
@@ -66,7 +75,7 @@ export default function Navigation() {
                     </Link>
                   </div>
                   <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                    {navigation.map((item) => (
+                    {filteredNavigation.map((item) => (
                       <Link
                         key={item.name}
                         href={item.to}
@@ -89,7 +98,7 @@ export default function Navigation() {
             </div>
             <Disclosure.Panel className="sm:hidden">
               <div className="space-y-1 pt-2 pb-4">
-                {navigation.map((item) => (
+                {filteredNavigation.map((item) => (
                   <Link
                     key={item.name}
                     href={item.to}
