@@ -3,6 +3,18 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useAppDispatch } from "../lib/hooks";
 import { addNotice } from "../lib/slices/toastsSlice";
+import { Button } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
+import { UserIcon } from "../components/ui/icons";
 
 interface ActivityMessage {
   predicted_class: number;
@@ -27,6 +39,12 @@ function UnsuspendedActivityPage() {
     const wsUrl = `${protocol}//${window.location.hostname}/api/v1/activity/ws`;
 
     const connectWebSocket = () => {
+      // Prevent multiple connections
+      if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) {
+        console.log("WebSocket already connected or connecting");
+        return;
+      }
+
       try {
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
@@ -89,80 +107,141 @@ function UnsuspendedActivityPage() {
         wsRef.current.close();
       }
     };
-  }, [dispatch]);
+  }, []); // Empty dependency array - only run once on mount
 
   const clearMessages = () => {
     setMessages([]);
   };
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8">
-      <div className="sm:flex sm:items-center">
-        <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">Activity Monitor</h1>
-          <p className="mt-2 text-sm text-gray-700">
-            Real-time activity predictions
-          </p>
-        </div>
-        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none flex items-center gap-4">
-          <div className="flex items-center">
-            <span className={`inline-block h-3 w-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
-            <span className="ml-2 text-sm text-gray-700">
-              {isConnected ? 'Connected' : 'Disconnected'}
-            </span>
+    <div className="min-h-screen bg-gray-50">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Activity Monitor</h1>
+            <p className="mt-2 text-gray-500">Real-time activity predictions and monitoring</p>
           </div>
-          <button
-            onClick={clearMessages}
-            className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-          >
-            Clear
-          </button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center rounded-lg border border-gray-200 bg-white px-3 py-2">
+              <span className={`inline-block h-2.5 w-2.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+              <span className="ml-2 text-sm font-medium text-gray-700">
+                {isConnected ? 'Connected' : 'Disconnected'}
+              </span>
+            </div>
+            <Button
+              onClick={clearMessages}
+              variant="outline"
+              className="bg-white"
+            >
+              Clear
+            </Button>
+          </div>
         </div>
-      </div>
 
-      <div className="mt-8 flex flex-col">
-        <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
-          <div className="inline-block min-w-full py-2 align-middle">
-            <div className="overflow-hidden shadow-sm ring-1 ring-black ring-opacity-5">
-              <table className="min-w-full divide-y divide-gray-300">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Time</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Member Name</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Predicted Action</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Confidence</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
+        {/* Stats Cards */}
+        <div className="mb-8 grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardContent className="flex items-center p-6">
+              <div className="rounded-lg bg-blue-50 p-3">
+                <UserIcon className="h-8 w-8 text-blue-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Total Activities</p>
+                <p className="text-2xl font-bold text-gray-900">{messages.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center p-6">
+              <div className="rounded-lg bg-green-50 p-3">
+                <div className={`h-3 w-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Connection Status</p>
+                <p className="text-2xl font-bold text-gray-900">{isConnected ? 'Active' : 'Inactive'}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Activity Table Card */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">Activity Feed</h2>
+              <p className="text-sm text-gray-500">Live stream of detected activities</p>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-hidden rounded-lg border border-gray-200">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Time</TableHead>
+                    <TableHead>Member Name</TableHead>
+                    {/* <TableHead>Member ID</TableHead> */}
+                    <TableHead>Predicted Action</TableHead>
+                    {/* <TableHead>Class</TableHead> */}
+                    <TableHead>Confidence</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {messages.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500">
-                        No activities detected yet
-                      </td>
-                    </tr>
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-gray-500">
+                        No activities detected yet. Waiting for real-time data...
+                      </TableCell>
+                    </TableRow>
                   ) : (
                     messages.map((message, index) => (
-                      <tr key={index}>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">
                           {message.timestamp ? new Date(message.timestamp).toLocaleTimeString() : '-'}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-                          {message.member?.name || 'Unknown'}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-                          {message.predicted_action}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-                          {(message.confidence * 100).toFixed(2)}%
-                        </td>
-                      </tr>
+                        </TableCell>
+                        <TableCell>{message.member?.name || 'Unknown'}</TableCell>
+                        {/* <TableCell>
+                          {message.member?.id ? (
+                            <Badge variant="secondary">{message.member.id}</Badge>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </TableCell> */}
+                        <TableCell>
+                          <Badge variant="outline" className="font-medium">
+                            {message.predicted_action}
+                          </Badge>
+                        </TableCell>
+                        {/* <TableCell>
+                          <Badge variant="secondary">Class {message.predicted_class}</Badge>
+                        </TableCell> */}
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200">
+                              <div
+                                className={`h-full ${
+                                  message.confidence >= 0.8
+                                    ? 'bg-green-500'
+                                    : message.confidence >= 0.5
+                                    ? 'bg-yellow-500'
+                                    : 'bg-red-500'
+                                }`}
+                                style={{ width: `${message.confidence * 100}%` }}
+                              />
+                            </div>
+                            <span className="text-sm font-medium text-gray-700">
+                              {(message.confidence * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     ))
                   )}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

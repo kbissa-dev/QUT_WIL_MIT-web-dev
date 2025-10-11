@@ -3,10 +3,12 @@
 import { useAppDispatch, useAppSelector } from "../../lib/hooks";
 import type { RootState } from "../../lib/store";
 import { Menu, Transition } from "@headlessui/react";
-import { ArrowLeftOnRectangleIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { loggedIn, logout } from "../../lib/slices/authSlice";
 import { useRouter } from "next/navigation";
+import { Button } from "../ui/button";
+import { Shield } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 const navigation = [{ name: "Settings", to: "/settings" }];
 const redirectRoute = "/";
@@ -30,25 +32,31 @@ const renderNavLinks = () => {
   ));
 };
 
-const renderUser = (loggedIn: boolean) => {
+const renderUser = (loggedIn: boolean, pathname: string, router: any) => {
   if (!loggedIn) {
     return (
-      <Link
-        href="/login"
-        className="rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
-      >
-        <ArrowLeftOnRectangleIcon className="block h-6 w-6" />
-      </Link>
+      <div className="flex items-center gap-2">
+        <Button
+          variant={pathname === "/login" ? "default" : "outline"}
+          size="sm"
+          onClick={() => router.push("/login")}
+        >
+          <Shield className="h-4 w-4 mr-2" />
+          Admin Login
+        </Button>
+      </div>
     );
   } else {
     return (
-      <Menu.Button className="flex rounded-full bg-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2">
-        <span className="sr-only">Open user menu</span>
-        <img
-          className="h-8 w-8 rounded-full"
-          src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-          alt=""
-        />
+      <Menu.Button className="flex rounded-full bg-white text-sm focus:outline-none">
+        <Button
+          variant={pathname === "/login" ? "default" : "outline"}
+          size="sm"
+          onClick={() => router.push("/login")}
+        >
+          <Shield className="h-4 w-4 mr-2" />
+          Admin Menu
+        </Button>
       </Menu.Button>
     );
   }
@@ -58,7 +66,7 @@ export default function AuthenticationNavigation() {
   const dispatch = useAppDispatch();
   const isLoggedIn = useAppSelector((state: RootState) => loggedIn(state));
   const router = useRouter();
-
+  const pathname = usePathname();
   const logoutUser = () => {
     dispatch(logout());
     router.push(redirectRoute);
@@ -66,7 +74,7 @@ export default function AuthenticationNavigation() {
 
   return (
     <Menu as="div" className="z-10 relative ml-3">
-      {renderUser(isLoggedIn)}
+      {renderUser(isLoggedIn, pathname, router)}
       <Transition
         enter="transition ease-out duration-200"
         enterFrom="transform opacity-0 scale-95"

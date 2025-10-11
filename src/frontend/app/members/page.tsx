@@ -7,13 +7,62 @@ import { token } from "../lib/slices/tokensSlice";
 import { addNotice } from "../lib/slices/toastsSlice";
 import { apiMember } from "../lib/api/member";
 import { IMember } from "../lib/interfaces/member";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Card, CardContent } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import {
+  UsersIcon,
+  UserIcon,
+  SearchIcon,
+  EyeIcon,
+  EditIcon,
+  TrashIcon,
+  PlusIcon,
+  CheckCircleIcon,
+} from "../components/ui/icons";
 
 function UnsuspendedMembersPage() {
   const [members, setMembers] = useState<IMember[]>([]);
-  const [editingMember, setEditingMember] = useState<IMember | null>(null);
-  const [formData, setFormData] = useState({ first_name: "", last_name: "", date_of_birth: "" });
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [memberToDelete, setMemberToDelete] = useState<IMember | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showViewDialog, setShowViewDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<IMember | null>(null);
+  const [formData, setFormData] = useState({ 
+    first_name: "", 
+    last_name: "", 
+    date_of_birth: "",
+    gender: "",
+    health_conditions: [] as string[],
+    new_condition: ""
+  });
+  
   const isLoggedIn = useAppSelector((state) => loggedIn(state));
   const accessToken = useAppSelector((state) => token(state));
   const dispatch = useAppDispatch();
@@ -38,213 +87,608 @@ function UnsuspendedMembersPage() {
     }
   }, [isLoggedIn]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const resetForm = () => {
+    setFormData({
+      first_name: "",
+      last_name: "",
+      date_of_birth: "",
+      gender: "",
+      health_conditions: [],
+      new_condition: ""
+    });
+  };
+
+  const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (editingMember) {
-        await apiMember.updateMember(accessToken, editingMember.id, formData);
-        dispatch(addNotice({
-          title: "Success",
-          content: "Member updated successfully"
-        }));
-      } else {
-        await apiMember.createMember(accessToken, formData);
-        dispatch(addNotice({
-          title: "Success",
-          content: "Member created successfully"
-        }));
-      }
-      setFormData({ first_name: "", last_name: "", date_of_birth: "" });
-      setEditingMember(null);
-      fetchMembers();
-    } catch (error) {
-      dispatch(addNotice({
-        title: "Error",
-        content: "Operation failed",
-        icon: "error"
-      }));
-    }
-  };
-
-  const handleDeleteClick = (member: IMember) => {
-    setMemberToDelete(member);
-    setShowDeleteModal(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await apiMember.deleteMember(accessToken, id);
+      await apiMember.createMember(accessToken, {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        date_of_birth: formData.date_of_birth,
+      });
       dispatch(addNotice({
         title: "Success",
-        content: "Member deleted successfully"
+        content: "Patient added successfully"
       }));
-      setShowDeleteModal(false);
-      setMemberToDelete(null);
+      setShowAddDialog(false);
+      resetForm();
       fetchMembers();
     } catch (error) {
       dispatch(addNotice({
         title: "Error",
-        content: "Failed to delete member",
+        content: "Failed to add patient",
         icon: "error"
       }));
     }
+  };
+
+  const handleEditMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMember) return;
+    
+    try {
+      await apiMember.updateMember(accessToken, selectedMember.id, {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        date_of_birth: formData.date_of_birth,
+      });
+      dispatch(addNotice({
+        title: "Success",
+        content: "Patient updated successfully"
+      }));
+      setShowEditDialog(false);
+      resetForm();
+      setSelectedMember(null);
+      fetchMembers();
+    } catch (error) {
+      dispatch(addNotice({
+        title: "Error",
+        content: "Failed to update patient",
+        icon: "error"
+      }));
+    }
+  };
+
+  const handleDeleteMember = async () => {
+    if (!selectedMember) return;
+    
+    try {
+      await apiMember.deleteMember(accessToken, selectedMember.id);
+      dispatch(addNotice({
+        title: "Success",
+        content: "Patient deleted successfully"
+      }));
+      setShowDeleteDialog(false);
+      setSelectedMember(null);
+      fetchMembers();
+    } catch (error) {
+      dispatch(addNotice({
+        title: "Error",
+        content: "Failed to delete patient",
+        icon: "error"
+      }));
+    }
+  };
+
+  const openEditDialog = (member: IMember) => {
+    setSelectedMember(member);
+    setFormData({
+      first_name: member.first_name,
+      last_name: member.last_name,
+      date_of_birth: member.date_of_birth,
+      gender: "",
+      health_conditions: [],
+      new_condition: ""
+    });
+    setShowEditDialog(true);
+  };
+
+  const openViewDialog = (member: IMember) => {
+    setSelectedMember(member);
+    setShowViewDialog(true);
+  };
+
+  const openDeleteDialog = (member: IMember) => {
+    setSelectedMember(member);
+    setShowDeleteDialog(true);
+  };
+
+  const addHealthCondition = () => {
+    if (formData.new_condition.trim()) {
+      setFormData({
+        ...formData,
+        health_conditions: [...formData.health_conditions, formData.new_condition.trim()],
+        new_condition: ""
+      });
+    }
+  };
+
+  const removeHealthCondition = (index: number) => {
+    setFormData({
+      ...formData,
+      health_conditions: formData.health_conditions.filter((_, i) => i !== index)
+    });
+  };
+
+  const filteredMembers = members.filter(member =>
+    `${member.first_name} ${member.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    member.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const calculateAge = (dob: string) => {
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
   };
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8">
-      <div className="sm:flex sm:items-center">
-        <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">Members</h1>
-          <p className="mt-2 text-sm text-gray-700">
-            Manage member information
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-8 bg-white shadow sm:rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
-          <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-3">
-              <div>
-                <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">
-                  First name
-                </label>
-                <input
-                  type="text"
-                  name="first_name"
-                  id="first_name"
-                  value={formData.first_name}
-                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                />
-              </div>
-              <div>
-                <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">
-                  Last name
-                </label>
-                <input
-                  type="text"
-                  name="last_name"
-                  id="last_name"
-                  value={formData.last_name}
-                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                />
-              </div>
-              <div>
-                <label htmlFor="date_of_birth" className="block text-sm font-medium text-gray-700">
-                  Date of Birth
-                </label>
-                <input
-                  type="date"
-                  name="date_of_birth"
-                  id="date_of_birth"
-                  value={formData.date_of_birth}
-                  onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                />
-              </div>
-            </div>
-            <div className="mt-5">
-              <button
-                type="submit"
-                className="inline-flex justify-center rounded-md border border-transparent bg-rose-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-rose-700"
-              >
-                {editingMember ? "Update" : "Create"} Member
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <div className="mt-8 flex flex-col">
-        <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
-          <div className="inline-block min-w-full py-2 align-middle">
-            <div className="overflow-hidden shadow-sm ring-1 ring-black ring-opacity-5">
-              <table className="min-w-full divide-y divide-gray-300">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Name</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Date of Birth</th>
-                    <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {Array.isArray(members) && members.map((member) => (
-                    <tr key={member.id}>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-                        {member.first_name} {member.last_name}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-                        {new Date(member.date_of_birth).toLocaleDateString()}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right text-sm">
-                        <button
-                          onClick={() => {
-                            setEditingMember(member);
-                            setFormData({
-                              first_name: member.first_name,
-                              last_name: member.last_name,
-                              date_of_birth: member.date_of_birth,
-                            });
-                          }}
-                          className="text-rose-600 hover:text-rose-900 mr-4"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClick(member)}
-                          className="text-rose-600 hover:text-rose-900"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Patient Management</h1>
+            <p className="mt-2 text-gray-500">Manage patient information and monitoring data</p>
           </div>
+          <Button
+            onClick={() => {
+              resetForm();
+              setShowAddDialog(true);
+            }}
+            className="bg-black text-white hover:bg-gray-800"
+          >
+            <PlusIcon className="mr-2 h-4 w-4" />
+            Add Patient
+          </Button>
         </div>
+
+      {/* Stats Cards */}
+      <div className="mb-8 grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardContent className="flex items-center p-6">
+            <div className="rounded-lg bg-blue-50 p-3">
+              <UsersIcon className="h-8 w-8 text-blue-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Total Patients</p>
+              <p className="text-2xl font-bold text-gray-900">{members.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center p-6">
+            <div className="rounded-lg bg-green-50 p-3">
+              <UserIcon className="h-8 w-8 text-green-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Active Monitoring</p>
+              <p className="text-2xl font-bold text-gray-900">{members.length}</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Modal for delete confirmation */}
-      {showDeleteModal && (
-        <>
-          <div 
-            className="fixed inset-0 bg-black/50 backdrop"
-            aria-hidden="true"
-          />
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4">
-              <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-auto">
-                <div className="p-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    Confirm Delete
-                  </h3>
-                  <p className="text-sm text-gray-500 mb-6">
-                    Are you sure you want to delete {memberToDelete?.first_name} {memberToDelete?.last_name}?
-                  </p>
-                  <div className="flex justify-end gap-3">
-                    <button
-                      onClick={() => setShowDeleteModal(false)}
-                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => memberToDelete && handleDelete(memberToDelete.id)}
-                      className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
-                    >
-                      Delete
-                    </button>
-                  </div>
+      {/* Patient Database Card */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-900">Patient Database</h2>
+            <p className="text-sm text-gray-500">Search and manage all registered patients</p>
+          </div>
+
+          {/* Search */}
+          <div className="relative mb-6">
+            <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search by name or patient ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          {/* Table */}
+          <div className="overflow-hidden rounded-lg border border-gray-200">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {/* <TableHead>Patient ID</TableHead> */}
+                  <TableHead>Name</TableHead>
+                  <TableHead>Age</TableHead>
+                  <TableHead>Gender</TableHead>
+                  <TableHead>Date of Birth</TableHead>
+                  <TableHead>Health Conditions</TableHead>
+                  {/* <TableHead>Registered</TableHead> */}
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredMembers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center text-gray-500">
+                      No patients found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredMembers.map((member) => (
+                    <TableRow key={member.id}>
+                      {/* <TableCell className="font-medium">{member.id}</TableCell> */}
+                      <TableCell>{member.first_name} {member.last_name}</TableCell>
+                      <TableCell>{calculateAge(member.date_of_birth)} years</TableCell>
+                      <TableCell>Male</TableCell>
+                      <TableCell>{new Date(member.date_of_birth).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        {/* <div className="flex flex-wrap gap-1">
+                          <Badge variant="secondary">Diabetes Type 2</Badge>
+                          <Badge variant="secondary">Hypertension</Badge>
+                          <span className="text-xs text-gray-500">+1</span>
+                        </div> */}
+                      </TableCell>
+                      {/* <TableCell>{new Date(member.date_of_birth).toLocaleDateString()}</TableCell> */}
+                      <TableCell>
+                        <Badge variant="success" className="flex w-fit items-center gap-1">
+                          <CheckCircleIcon className="h-3 w-3" />
+                          Active
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => openViewDialog(member)}
+                            className="rounded p-1 hover:bg-gray-100"
+                            title="View"
+                          >
+                            <EyeIcon className="h-4 w-4 text-gray-600" />
+                          </button>
+                          <button
+                            onClick={() => openEditDialog(member)}
+                            className="rounded p-1 hover:bg-gray-100"
+                            title="Edit"
+                          >
+                            <EditIcon className="h-4 w-4 text-gray-600" />
+                          </button>
+                          <button
+                            onClick={() => openDeleteDialog(member)}
+                            className="rounded p-1 hover:bg-gray-100"
+                            title="Delete"
+                          >
+                            <TrashIcon className="h-4 w-4 text-gray-600" />
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Add Patient Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Patient</DialogTitle>
+            <DialogDescription>
+              Enter patient information to add them to the monitoring system.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddMember}>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="add-first-name">First Name</Label>
+                  <Input
+                    id="add-first-name"
+                    placeholder="John"
+                    value={formData.first_name}
+                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="add-last-name">Last Name</Label>
+                  <Input
+                    id="add-last-name"
+                    placeholder="Doe"
+                    value={formData.last_name}
+                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                    required
+                  />
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="add-dob">Date of Birth</Label>
+                <Input
+                  id="add-dob"
+                  type="date"
+                  placeholder="dd/mm/yyyy"
+                  value={formData.date_of_birth}
+                  onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="add-gender">Gender</Label>
+                <Select 
+                value={formData.gender} 
+                onValueChange={(value: "male" | "female" | "other") => 
+                  setFormData({...formData, gender: value})
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Health Conditions</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter health condition"
+                    value={formData.new_condition}
+                    onChange={(e) => setFormData({ ...formData, new_condition: e.target.value })}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addHealthCondition())}
+                  />
+                  <Button type="button" onClick={addHealthCondition} size="sm">
+                    <PlusIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+                {formData.health_conditions.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {formData.health_conditions.map((condition, index) => (
+                      <Badge
+                        key={index}
+                        variant="secondary"
+                        className="cursor-pointer"
+                        onClick={() => removeHealthCondition(index)}
+                      >
+                        {condition} ×
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-gray-500">Click on a condition to remove it</p>
+              </div>
             </div>
-          </div>
-        </>
-      )}
+            <DialogFooter className="mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowAddDialog(false);
+                  resetForm();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-black text-white hover:bg-gray-800">
+                Add Patient
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Patient Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Patient</DialogTitle>
+            <DialogDescription>Update patient information below.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditMember}>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-first-name">First Name</Label>
+                  <Input
+                    id="edit-first-name"
+                    value={formData.first_name}
+                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-last-name">Last Name</Label>
+                  <Input
+                    id="edit-last-name"
+                    value={formData.last_name}
+                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-dob">Date of Birth</Label>
+                <Input
+                  id="edit-dob"
+                  type="date"
+                  value={formData.date_of_birth}
+                  onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-gender">Gender</Label>
+                <Select 
+                  value={formData.gender} 
+                  onValueChange={(value: "male" | "female" | "other") => 
+                    setFormData({...formData, gender: value})
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Health Conditions</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter health condition"
+                    value={formData.new_condition}
+                    onChange={(e) => setFormData({ ...formData, new_condition: e.target.value })}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addHealthCondition())}
+                  />
+                  <Button type="button" onClick={addHealthCondition} size="sm">
+                    <PlusIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+                {formData.health_conditions.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {formData.health_conditions.map((condition, index) => (
+                      <Badge
+                        key={index}
+                        variant="secondary"
+                        className="cursor-pointer"
+                        onClick={() => removeHealthCondition(index)}
+                      >
+                        {condition} ×
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-gray-500">Click on a condition to remove it</p>
+              </div>
+            </div>
+            <DialogFooter className="mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowEditDialog(false);
+                  resetForm();
+                  setSelectedMember(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-black text-white hover:bg-gray-800">
+                Update Patient
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Patient Dialog */}
+      <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <UserIcon className="h-5 w-5" />
+              <DialogTitle>Patient Details</DialogTitle>
+            </div>
+          </DialogHeader>
+          {selectedMember && (
+            <div className="space-y-4">
+              <div className="text-sm text-gray-500">
+                Patient ID: {selectedMember.id}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">First Name</p>
+                  <p className="text-base text-gray-900">{selectedMember.first_name}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Last Name</p>
+                  <p className="text-base text-gray-900">{selectedMember.last_name}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Date of Birth</p>
+                  <p className="text-base text-gray-900">
+                    {new Date(selectedMember.date_of_birth).toLocaleDateString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Age</p>
+                  <p className="text-base text-gray-900">
+                    {calculateAge(selectedMember.date_of_birth)} years
+                  </p>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">Gender</p>
+                <p className="text-base text-gray-900">Male</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">Health Conditions</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Badge variant="outline">Diabetes Type 2</Badge>
+                  <Badge variant="outline">Hypertension</Badge>
+                  <Badge variant="outline">High Cholesterol</Badge>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">Registration Date</p>
+                <p className="text-base text-gray-900">
+                  {new Date(selectedMember.date_of_birth).toLocaleDateString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">Status</p>
+                <Badge variant="success" className="mt-1 flex w-fit items-center gap-1">
+                  <CheckCircleIcon className="h-3 w-3" />
+                  Active
+                </Badge>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedMember?.first_name} {selectedMember?.last_name}?
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteDialog(false);
+                setSelectedMember(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteMember}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      </div>
     </div>
   );
 }
