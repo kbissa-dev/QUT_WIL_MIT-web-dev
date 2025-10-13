@@ -1,17 +1,15 @@
 "use client";
 
-import logo from "../assets/img/logo.svg";
 import { Disclosure } from "@headlessui/react";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AlertsButton from "./alerts/AlertsButton";
 import dynamic from "next/dynamic";
-import { siteName } from "../lib/utilities/generic";
 import { useAppSelector } from "../lib/hooks";
 import { RootState } from "../lib/store";
-import { profile } from "../lib/slices/authSlice";
-import { Heart } from "lucide-react";
+import { isAdmin, loggedIn } from "../lib/slices/authSlice";
+import { HeartPulse } from "lucide-react";
 
 const AuthenticationNavigation = dynamic(
   () => import("./authentication/AuthenticationNavigation"),
@@ -38,14 +36,13 @@ const renderIcon = (open: boolean) => {
 };
 
 export default function Navigation() {
-  // Get user details from Redux store
-  const currentProfile = useAppSelector((state: RootState) => profile(state));
-  const isSuperUser = currentProfile.is_superuser || false;
+  const isValidAdmin = useAppSelector((state) => isAdmin(state));
+  const isLoggedIn = useAppSelector((state: RootState) => loggedIn(state));
   const pathname = usePathname();
 
   // Filter navigation based on user permissions
   const filteredNavigation = navigation.filter(
-    (item) => !item.requiresSuperUser || isSuperUser
+    (item) => !item.requiresSuperUser || (isValidAdmin && isLoggedIn)
   );
 
   return (
@@ -65,7 +62,7 @@ export default function Navigation() {
                 <div className="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
                   <div className="flex flex-shrink-0 items-center">
                     <Link href="/" className="flex flex-shrink-0 items-center">
-                      <Heart className="h-8 w-8 text-red-500" />
+                      <HeartPulse className="h-8 w-8 text-red-500" />
                     </Link>
                   </div>
                   <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
