@@ -1,3 +1,4 @@
+import time
 from uuid import UUID
 from fastapi import File, UploadFile, WebSocket
 from fastapi import APIRouter, Depends, HTTPException
@@ -36,6 +37,9 @@ else:
 
 # Connected WebSocket clients
 connected_clients: List[WebSocket] = []
+
+# List to store inference times for performance monitoring
+inferencetimes = []
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -79,6 +83,7 @@ async def activity(
     inertial_data = await inertial_file.read() if inertial_file else None
     depth_data = await depth_file.read() if depth_file else None
     
+    start_time = time.time()
     # Predict
     result = evaluator.predict(
         skeleton_data=skeleton_data,
@@ -86,6 +91,13 @@ async def activity(
         depth_data=depth_data,
         return_probabilities=False
     )
+    end_time = time.time()
+    inferencetimes.append(end_time - start_time)
+    print(f"Inference time: {end_time - start_time:.4f} seconds")
+    print(f"Minimum inference time: {min(inferencetimes):.4f} seconds")
+    print(f"Maximum inference time: {max(inferencetimes):.4f} seconds")
+    print(f"Average inference time: {sum(inferencetimes)/len(inferencetimes):.4f} seconds")
+
     member = await crud.member.get_by_id(db, id=member_id)
 
     if member:
