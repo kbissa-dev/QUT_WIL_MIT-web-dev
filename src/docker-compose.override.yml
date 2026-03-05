@@ -73,7 +73,10 @@ services:
       - "3000:3000"
     build:
       context: ./frontend
-      target: runner
+      target: runner 
+    working_dir: /frontend
+    command: node server.js
+    
     labels:
       - traefik.enable=true
       - traefik.constraint-label-stack=${TRAEFIK_TAG?Variable not set}
