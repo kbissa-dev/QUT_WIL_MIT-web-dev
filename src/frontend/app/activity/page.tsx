@@ -5,7 +5,6 @@ import { useAppDispatch } from "../lib/hooks";
 import { addNotice } from "../lib/slices/toastsSlice";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
 import {
   Table,
   TableBody,
@@ -16,34 +15,51 @@ import {
 } from "../components/ui/table";
 import { UserIcon } from "../components/ui/icons";
 
+// ─── TYPE ──────────────────────────────────────────────────
 interface ActivityMessage {
-  predicted_class: number;
-  predicted_action: string;
+  predicted_class?: number;
+  predicted_action: string; // 'fall' or 'no_fall'
   confidence: number;
-  member: {
-    id: string;
-    name: string;
-  } | null;
+  member: { id: string; name: string } | null;
   timestamp?: string;
 }
 
+// ─── HELPER FUNCTIONS ──────────────────────────────────────
+// Pulled out so Tailwind doesn't show red warnings on dynamic classes
+
+function dotColor(connected: boolean): string {
+  return connected ? "bg-green-500" : "bg-red-500";
+}
+
+function confidenceBarColor(confidence: number): string {
+  if (confidence >= 0.8) return "bg-green-500";
+  if (confidence >= 0.5) return "bg-yellow-500";
+  return "bg-red-500";
+}
+
+// ─── PAGE ──────────────────────────────────────────────────
 function UnsuspendedActivityPage() {
-  const [messages, setMessages] = useState<ActivityMessage[]>([]);
+
+  // HARDCODED TEST DATA
+  // TODO: when backend ready — delete the 2 objects inside [] and leave it as []
+  const [messages, setMessages] = useState<ActivityMessage[]>([
+    { predicted_action: "fall",    confidence: 0.94, member: { id: "1", name: "Test Patient" }, timestamp: new Date().toISOString() },
+    { predicted_action: "no_fall", confidence: 0.72, member: { id: "2", name: "Mary Smith"   }, timestamp: new Date().toISOString() },
+  ]);
+
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-    // Determine WebSocket URL based on environment
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.hostname}/api/v1/activity/ws`;
 
     const connectWebSocket = () => {
-      // Prevent multiple connections
-      if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) {
-        console.log("WebSocket already connected or connecting");
-        return;
-      }
+      if (
+        wsRef.current?.readyState === WebSocket.OPEN ||
+        wsRef.current?.readyState === WebSocket.CONNECTING
+      ) return;
 
       try {
         const ws = new WebSocket(wsUrl);
@@ -51,89 +67,56 @@ function UnsuspendedActivityPage() {
 
         ws.onopen = () => {
           setIsConnected(true);
-          dispatch(addNotice({
-            title: "Connected",
-            content: "WebSocket connection established"
-          }));
+          dispatch(addNotice({ title: "Connected", content: "WebSocket connection established" }));
         };
 
         ws.onmessage = (event) => {
           try {
             const data: ActivityMessage = JSON.parse(event.data);
-            console.log("Received message:", data);
-            // Add timestamp to message
-            const messageWithTimestamp = {
-              ...data,
-              timestamp: new Date().toISOString()
-            };
-            setMessages(prev => [messageWithTimestamp, ...prev]);
-          } catch (error) {
-            console.error("Failed to parse message:", error);
+            setMessages((prev) => [{ ...data, timestamp: new Date().toISOString() }, ...prev]);
+          } catch (e) {
+            console.error("Failed to parse message:", e);
           }
         };
 
-        ws.onerror = (error) => {
-          console.error("WebSocket error:", error);
-          dispatch(addNotice({
-            title: "Error",
-            content: "WebSocket connection error",
-            icon: "error"
-          }));
+        ws.onerror = () => {
+          dispatch(addNotice({ title: "Error", content: "WebSocket connection error", icon: "error" }));
         };
 
         ws.onclose = () => {
           setIsConnected(false);
-          dispatch(addNotice({
-            title: "Disconnected",
-            content: "WebSocket connection closed",
-            icon: "error"
-          }));
-          
-          // Attempt to reconnect after 3 seconds
-          setTimeout(() => {
-            connectWebSocket();
-          }, 3000);
+          dispatch(addNotice({ title: "Disconnected", content: "WebSocket connection closed", icon: "error" }));
+          setTimeout(() => connectWebSocket(), 3000);
         };
-      } catch (error) {
-        console.error("Failed to create WebSocket:", error);
+      } catch (e) {
+        console.error("Failed to create WebSocket:", e);
       }
     };
 
     connectWebSocket();
+    return () => { if (wsRef.current) wsRef.current.close(); };
+  }, []);
 
-    // Cleanup on unmount
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, []); // Empty dependency array - only run once on mount
-
-  const clearMessages = () => {
-    setMessages([]);
-  };
+  const clearMessages = () => setMessages([]);
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+
         {/* Header */}
         <div className="mb-8 flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Activity Monitor</h1>
-            <p className="mt-2 text-gray-500">Real-time activity predictions and monitoring</p>
+            <p className="mt-2 text-gray-500">Real-time fall detection monitoring</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center rounded-lg border border-gray-200 bg-white px-3 py-2">
-              <span className={`inline-block h-2.5 w-2.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+              <span className={`inline-block h-2.5 w-2.5 rounded-full ${dotColor(isConnected)}`} />
               <span className="ml-2 text-sm font-medium text-gray-700">
-                {isConnected ? 'Connected' : 'Disconnected'}
+                {isConnected ? "Connected" : "Disconnected"}
               </span>
             </div>
-            <Button
-              onClick={clearMessages}
-              variant="outline"
-              className="bg-white"
-            >
+            <Button onClick={clearMessages} variant="outline" className="bg-white">
               Clear
             </Button>
           </div>
@@ -155,17 +138,19 @@ function UnsuspendedActivityPage() {
           <Card>
             <CardContent className="flex items-center p-6">
               <div className="rounded-lg bg-green-50 p-3">
-                <div className={`h-3 w-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <div className={`h-3 w-3 rounded-full ${dotColor(isConnected)}`} />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500">Connection Status</p>
-                <p className="text-2xl font-bold text-gray-900">{isConnected ? 'Active' : 'Inactive'}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {isConnected ? "Active" : "Inactive"}
+                </p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Activity Table Card */}
+        {/* Activity Table */}
         <Card>
           <CardContent className="p-6">
             <div className="mb-6">
@@ -173,59 +158,58 @@ function UnsuspendedActivityPage() {
               <p className="text-sm text-gray-500">Live stream of detected activities</p>
             </div>
 
-            {/* Table */}
             <div className="overflow-hidden rounded-lg border border-gray-200">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Time</TableHead>
                     <TableHead>Member Name</TableHead>
-                    {/* <TableHead>Member ID</TableHead> */}
-                    <TableHead>Predicted Action</TableHead>
-                    {/* <TableHead>Class</TableHead> */}
+                    <TableHead>Detection Result</TableHead>
                     <TableHead>Confidence</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {messages.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-gray-500">
+                      <TableCell colSpan={4} className="text-center text-gray-500">
                         No activities detected yet. Waiting for real-time data...
                       </TableCell>
                     </TableRow>
                   ) : (
                     messages.map((message, index) => (
                       <TableRow key={index}>
+
+                        {/* Time */}
                         <TableCell className="font-medium">
-                          {message.timestamp ? new Date(message.timestamp).toLocaleTimeString() : '-'}
+                          {message.timestamp
+                            ? new Date(message.timestamp).toLocaleTimeString()
+                            : "-"}
                         </TableCell>
-                        <TableCell>{message.member?.name || 'Unknown'}</TableCell>
-                        {/* <TableCell>
-                          {message.member?.id ? (
-                            <Badge variant="secondary">{message.member.id}</Badge>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </TableCell> */}
+
+                        {/* Member Name */}
                         <TableCell>
-                          <Badge variant="outline" className="font-medium">
-                            {message.predicted_action}
-                          </Badge>
+                          {message.member?.name || "Unknown"}
                         </TableCell>
-                        {/* <TableCell>
-                          <Badge variant="secondary">Class {message.predicted_class}</Badge>
-                        </TableCell> */}
+
+                        {/* Fall / No Fall — THE ONLY THING WE CHANGED */}
+                        <TableCell>
+                          {message.predicted_action === "fall" ? (
+                            <span className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm font-bold text-red-700">
+                              FALL DETECTED
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-bold text-green-700">
+                              NO FALL
+                            </span>
+                          )}
+                        </TableCell>
+
+                        {/* Confidence Bar */}
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200">
                               <div
-                                className={`h-full ${
-                                  message.confidence >= 0.8
-                                    ? 'bg-green-500'
-                                    : message.confidence >= 0.5
-                                    ? 'bg-yellow-500'
-                                    : 'bg-red-500'
-                                }`}
+                                className={`h-full ${confidenceBarColor(message.confidence)}`}
                                 style={{ width: `${message.confidence * 100}%` }}
                               />
                             </div>
@@ -234,6 +218,7 @@ function UnsuspendedActivityPage() {
                             </span>
                           </div>
                         </TableCell>
+
                       </TableRow>
                     ))
                   )}
@@ -242,6 +227,7 @@ function UnsuspendedActivityPage() {
             </div>
           </CardContent>
         </Card>
+
       </div>
     </div>
   );

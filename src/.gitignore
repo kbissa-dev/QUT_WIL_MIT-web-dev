@@ -7,3 +7,15 @@ docker-stack.yml
 .s3cfg
 
 .DS_Store
+# Dataset — never commit
+data/
+datasets/
+UTD-MHAD/
+Skeleton/
+Inertial/
+Depth/
+*.mat
+*.npy
+*.h5
+*.pkl
+notebooks/.ipynb_checkpoints/
