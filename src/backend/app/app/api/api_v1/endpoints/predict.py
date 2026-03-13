@@ -1,0 +1,63 @@
+from fastapi import APIRouter, Depends
+from motor.core import AgnosticDatabase
+from uuid import UUID
+from datetime import datetime
+from app.api import deps
+from app import crud
+from app.api.api_v1.endpoints.activity import broadcast_prediction
+
+router = APIRouter()
+
+# UTD-MHAD activity mapping for demo
+# Activity 25 = Lunge (closest to fall in dataset)
+FALL_ACTIVITY_CLASS = 25
+
+async def insert_fall_event(db: AgnosticDatabase, member_id: str, confidence: float):
+    """NNP-79 — Save fall event to MongoDB when prediction = fall"""
+    await db["fall_events"].insert_one({
+        "member_id": member_id,
+        "timestamp": datetime.utcnow(),
+        "prediction": "fall",
+        "confidence": confidence,
+    })
+
+@router.post("/{member_id}")
+async def predict_mock(
+    member_id: UUID,
+    *,
+    db: AgnosticDatabase = Depends(deps.get_db),
+):
+    """
+    Mock /predict endpoint — returns fake fall/no-fall data.
+    TODO: Replace with real model when ML Team's model.pth is ready.
+    """
+    import random
+
+    predicted_class = FALL_ACTIVITY_CLASS
+    is_fall = (predicted_class == FALL_ACTIVITY_CLASS)
+
+    result = {
+        "predicted_class": predicted_class,
+        "predicted_action": "fall" if is_fall else "no_fall",
+        "confidence": round(random.uniform(0.85, 0.97), 2) if is_fall else round(random.uniform(0.70, 0.89), 2),
+    }
+
+    # Get member from MongoDB
+    member = await crud.member.get_by_id(db, id=member_id)
+    if member:
+        result["member"] = {
+            "id": str(member.id),
+            "name": member.first_name + " " + member.last_name,
+        }
+    else:
+        result["member"] = None
+
+    # NNP-80 — Save to MongoDB if fall detected
+    if is_fall:
+        await insert_fall_event(db, str(member_id), result["confidence"])
+        print(f"Fall event saved to MongoDB for member {member_id}")
+
+    # Broadcast to WebSocket
+    await broadcast_prediction(result)
+
+    return {"status": "ok", "result": result}

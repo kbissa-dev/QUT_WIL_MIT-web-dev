@@ -7,6 +7,7 @@ from app.api.api_v1.endpoints import (
     members,
     member,
     activity,
+    predict, #
 )
 
 api_router = APIRouter()
@@ -16,3 +17,4 @@ api_router.include_router(proxy.router, prefix="/proxy", tags=["proxy"])
 api_router.include_router(members.router, prefix="/members", tags=["members"])
 api_router.include_router(member.router, prefix="/member", tags=["member"])
 api_router.include_router(activity.router, prefix="/activity", tags=["activity"])
+api_router.include_router(predict.router, prefix="/predict", tags=["predict"])  
