@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, Suspense } from "react";
-import { useAppDispatch } from "../lib/hooks";
+import { useAppDispatch, useAppSelector } from "../lib/hooks";
 import { addNotice } from "../lib/slices/toastsSlice";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
@@ -40,20 +40,16 @@ function confidenceBarColor(confidence: number): string {
 // ─── PAGE ──────────────────────────────────────────────────
 function UnsuspendedActivityPage() {
 
-  // HARDCODED TEST DATA
-  // TODO: when backend ready — delete the 2 objects inside [] and leave it as []
-  const [messages, setMessages] = useState<ActivityMessage[]>([
-    { predicted_action: "fall",    confidence: 0.94, member: { id: "1", name: "Test Patient" }, timestamp: new Date().toISOString() },
-    { predicted_action: "no_fall", confidence: 0.72, member: { id: "2", name: "Mary Smith"   }, timestamp: new Date().toISOString() },
-  ]);
+  const [messages, setMessages] = useState<ActivityMessage[]>([]);
 
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const dispatch = useAppDispatch();
+  const accessToken = useAppSelector((state: any) => state.tokens.access_token);
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.hostname}/api/v1/activity/ws`;
+    const wsUrl = `${protocol}//${window.location.hostname}/api/v1/activity/ws?token=${accessToken}`;
 
     const connectWebSocket = () => {
       if (
@@ -95,7 +91,7 @@ function UnsuspendedActivityPage() {
 
     connectWebSocket();
     return () => { if (wsRef.current) wsRef.current.close(); };
-  }, []);
+  }, [accessToken]);
 
   const clearMessages = () => setMessages([]);
 

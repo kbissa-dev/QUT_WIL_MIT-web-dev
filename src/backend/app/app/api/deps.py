@@ -124,13 +124,13 @@ async def get_active_websocket_user(*, db: AgnosticDatabase, token: str) -> mode
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGO])
         token_data = schemas.TokenPayload(**payload)
     except (jwt.JWTError, ValidationError):
-        raise ValidationError("Could not validate credentials")
+        raise Exception("Could not validate credentials")
     if token_data.refresh:
         # Refresh token is not a valid access token
-        raise ValidationError("Could not validate credentials")
+        raise Exception("Could not validate credentials")
     user = await crud.user.get(db, id=token_data.sub)
     if not user:
-        raise ValidationError("User not found")
+        raise Exception("User not found")
     if not crud.user.is_active(user):
-        raise ValidationError("Inactive user")
+        raise Exception("Inactive user")
     return user

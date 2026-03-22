@@ -42,11 +42,17 @@ connected_clients: List[WebSocket] = []
 inferencetimes = []
 
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket, token: str, db: AgnosticDatabase = Depends(deps.get_db)):
     """WebSocket endpoint for real-time predictions"""
     await websocket.accept()
+    try:
+        await deps.get_active_websocket_user(db=db, token=token)
+    except Exception as e:
+        print(f"WebSocket auth failed: {e}")
+        await websocket.close(code=1008)
+        return
+
     connected_clients.append(websocket)
-    
     try:
         while True:
             await websocket.receive_text()  # Keep connection alive
