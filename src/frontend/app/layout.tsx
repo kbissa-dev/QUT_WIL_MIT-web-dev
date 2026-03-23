@@ -4,6 +4,8 @@ import Navigation from "./components/Navigation";
 import Notification from "./components/Notification";
 import ReduxProvider from "./lib/reduxProvider";
 import Footer from "./components/Footer";
+import FallAlertBanner from "./components/alerts/FallAlertBanner";
+
 
 export const metadata: Metadata = {
   title: "FastAPI/React starter stack",
@@ -22,6 +24,7 @@ export default function RootLayout({
           <div className="bg-white">
             <slot name="header">
               <Navigation />
+              <FallAlertBanner />
             </slot>
           </div>
           {children}

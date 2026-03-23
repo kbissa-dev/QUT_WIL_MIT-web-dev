@@ -11,12 +11,14 @@ import {
 import authReducer from "./slices/authSlice";
 import toastsReducer from "./slices/toastsSlice";
 import tokensReducer from "./slices/tokensSlice";
+import alertsReducer from "./slices/alertsSlice";
 import storage from "./storage";
 
 const reducers = combineReducers({
   auth: authReducer,
   toasts: toastsReducer,
   tokens: tokensReducer,
+  alerts: alertsReducer,
 });
 
 const persistConfig = {
