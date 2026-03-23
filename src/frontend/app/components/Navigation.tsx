@@ -21,6 +21,7 @@ const navigation = [
   // { name: "About", to: "/about", requiresSuperUser: false },
   { name: "Patients", to: "/members", requiresSuperUser: true },
   { name: "Activity", to: "/activity", requiresSuperUser: true },
+  { name: "Alerts", to: "/alerts", requiresSuperUser: true },
   // { name: "Authentication", to: "/authentication", requiresSuperUser: false },
   // { name: "Blog", to: "/blog", requiresSuperUser: false },
   // Add moderation link that requires super user

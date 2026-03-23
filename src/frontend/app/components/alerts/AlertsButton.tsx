@@ -2,13 +2,16 @@
 
 import { BellIcon } from "@heroicons/react/24/outline";
 import { useAppSelector } from "../../lib/hooks";
+import { useRouter } from "next/navigation";
 
 export default function AlertsButton() {
   const hasAlert = useAppSelector((state: any) => state.alerts.hasActiveAlert);
+  const router = useRouter();
 
   return (
     <button
       type="button"
+      onClick={() => router.push("/alerts")}
       className="relative rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
     >
       <span className="sr-only">View notifications</span>

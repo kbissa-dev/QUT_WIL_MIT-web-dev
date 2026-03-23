@@ -3,29 +3,21 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useAppDispatch, useAppSelector } from "../lib/hooks";
 import { addNotice } from "../lib/slices/toastsSlice";
+import { setAlert } from "../lib/slices/alertsSlice"; // NEW
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "../components/ui/table";
 import { UserIcon } from "../components/ui/icons";
 
-// ─── TYPE ──────────────────────────────────────────────────
 interface ActivityMessage {
   predicted_class?: number;
-  predicted_action: string; // 'fall' or 'no_fall'
+  predicted_action: string;
   confidence: number;
   member: { id: string; name: string } | null;
   timestamp?: string;
 }
-
-// ─── HELPER FUNCTIONS ──────────────────────────────────────
-// Pulled out so Tailwind doesn't show red warnings on dynamic classes
 
 function dotColor(connected: boolean): string {
   return connected ? "bg-green-500" : "bg-red-500";
@@ -37,11 +29,8 @@ function confidenceBarColor(confidence: number): string {
   return "bg-red-500";
 }
 
-// ─── PAGE ──────────────────────────────────────────────────
 function UnsuspendedActivityPage() {
-
   const [messages, setMessages] = useState<ActivityMessage[]>([]);
-
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const dispatch = useAppDispatch();
@@ -69,7 +58,17 @@ function UnsuspendedActivityPage() {
         ws.onmessage = (event) => {
           try {
             const data: ActivityMessage = JSON.parse(event.data);
-            setMessages((prev) => [{ ...data, timestamp: new Date().toISOString() }, ...prev]);
+            const timestamped = { ...data, timestamp: new Date().toISOString() };
+            setMessages((prev) => [timestamped, ...prev]);
+
+            // NEW: dispatch alert on fall
+            if (data.predicted_action === "fall" && data.member) {
+              dispatch(setAlert({
+                memberName: data.member.name,
+                timestamp: timestamped.timestamp,
+                confidence: data.confidence,
+              }));
+            }
           } catch (e) {
             console.error("Failed to parse message:", e);
           }
@@ -98,8 +97,6 @@ function UnsuspendedActivityPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-
-        {/* Header */}
         <div className="mb-8 flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Activity Monitor</h1>
@@ -112,13 +109,10 @@ function UnsuspendedActivityPage() {
                 {isConnected ? "Connected" : "Disconnected"}
               </span>
             </div>
-            <Button onClick={clearMessages} variant="outline" className="bg-white">
-              Clear
-            </Button>
+            <Button onClick={clearMessages} variant="outline" className="bg-white">Clear</Button>
           </div>
         </div>
 
-        {/* Stats Cards */}
         <div className="mb-8 grid gap-6 md:grid-cols-2">
           <Card>
             <CardContent className="flex items-center p-6">
@@ -138,22 +132,18 @@ function UnsuspendedActivityPage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500">Connection Status</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {isConnected ? "Active" : "Inactive"}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{isConnected ? "Active" : "Inactive"}</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Activity Table */}
         <Card>
           <CardContent className="p-6">
             <div className="mb-6">
               <h2 className="text-xl font-semibold text-gray-900">Activity Feed</h2>
               <p className="text-sm text-gray-500">Live stream of detected activities</p>
             </div>
-
             <div className="overflow-hidden rounded-lg border border-gray-200">
               <Table>
                 <TableHeader>
@@ -174,20 +164,10 @@ function UnsuspendedActivityPage() {
                   ) : (
                     messages.map((message, index) => (
                       <TableRow key={index}>
-
-                        {/* Time */}
                         <TableCell className="font-medium">
-                          {message.timestamp
-                            ? new Date(message.timestamp).toLocaleTimeString()
-                            : "-"}
+                          {message.timestamp ? new Date(message.timestamp).toLocaleTimeString() : "-"}
                         </TableCell>
-
-                        {/* Member Name */}
-                        <TableCell>
-                          {message.member?.name || "Unknown"}
-                        </TableCell>
-
-                        {/* Fall / No Fall — THE ONLY THING WE CHANGED */}
+                        <TableCell>{message.member?.name || "Unknown"}</TableCell>
                         <TableCell>
                           {message.predicted_action === "fall" ? (
                             <span className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm font-bold text-red-700">
@@ -199,8 +179,6 @@ function UnsuspendedActivityPage() {
                             </span>
                           )}
                         </TableCell>
-
-                        {/* Confidence Bar */}
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200">
@@ -214,7 +192,6 @@ function UnsuspendedActivityPage() {
                             </span>
                           </div>
                         </TableCell>
-
                       </TableRow>
                     ))
                   )}
@@ -223,7 +200,6 @@ function UnsuspendedActivityPage() {
             </div>
           </CardContent>
         </Card>
-
       </div>
     </div>
   );

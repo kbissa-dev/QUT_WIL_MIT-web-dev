@@ -12,14 +12,27 @@ router = APIRouter()
 # Activity 25 = Lunge (closest to fall in dataset)
 FALL_ACTIVITY_CLASS = 25
 
-async def insert_fall_event(db: AgnosticDatabase, member_id: str, confidence: float):
-    """NNP-79 — Save fall event to MongoDB when prediction = fall"""
-    await db["fall_events"].insert_one({
-        "member_id": member_id,
-        "timestamp": datetime.utcnow(),
-        "prediction": "fall",
-        "confidence": confidence,
-    })
+
+async def insert_fall_event(
+    db: AgnosticDatabase,
+    member_id: str,
+    member_name: str | None,
+    confidence: float,
+):
+    """Save fall event to MongoDB when prediction = fall"""
+    await db["fall_events"].insert_one(
+        {
+            "member_id": member_id,
+            "member_name": member_name,
+            "timestamp": datetime.utcnow(),
+            "prediction": "fall",
+            "confidence": confidence,
+            "acknowledged": False,
+            "acknowledged_at": None,
+            "acknowledged_by": None,
+        }
+    )
+
 
 @router.post("/{member_id}")
 async def predict_mock(
@@ -34,27 +47,32 @@ async def predict_mock(
     import random
 
     predicted_class = FALL_ACTIVITY_CLASS
-    is_fall = (predicted_class == FALL_ACTIVITY_CLASS)
+    is_fall = predicted_class == FALL_ACTIVITY_CLASS
 
     result = {
         "predicted_class": predicted_class,
         "predicted_action": "fall" if is_fall else "no_fall",
-        "confidence": round(random.uniform(0.85, 0.97), 2) if is_fall else round(random.uniform(0.70, 0.89), 2),
+        "confidence": round(random.uniform(0.85, 0.97), 2)
+        if is_fall
+        else round(random.uniform(0.70, 0.89), 2),
     }
+
+    member_name = None
 
     # Get member from MongoDB
     member = await crud.member.get_by_id(db, id=member_id)
     if member:
+        member_name = member.first_name + " " + member.last_name
         result["member"] = {
             "id": str(member.id),
-            "name": member.first_name + " " + member.last_name,
+            "name": member_name,
         }
     else:
         result["member"] = None
 
-    # NNP-80 — Save to MongoDB if fall detected
+    # Save to MongoDB if fall detected
     if is_fall:
-        await insert_fall_event(db, str(member_id), result["confidence"])
+        await insert_fall_event(db, str(member_id), member_name, result["confidence"])
         print(f"Fall event saved to MongoDB for member {member_id}")
 
     # Broadcast to WebSocket
