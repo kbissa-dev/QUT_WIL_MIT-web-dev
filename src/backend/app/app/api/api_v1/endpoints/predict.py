@@ -5,6 +5,8 @@ from datetime import datetime
 from app.api import deps
 from app import crud
 from app.api.api_v1.endpoints.activity import broadcast_prediction
+from app.api.deps import get_current_active_user
+from app.models.user import User
 
 router = APIRouter()
 
@@ -39,6 +41,7 @@ async def predict_mock(
     member_id: UUID,
     *,
     db: AgnosticDatabase = Depends(deps.get_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Mock /predict endpoint — returns fake fall/no-fall data.
