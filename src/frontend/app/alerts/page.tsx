@@ -32,7 +32,7 @@ export default function AlertsPage() {
   const loadAlerts = async () => {
     try {
       setError("");
-      const res = await fetch("/api/v1/alerts", {
+      const res = await fetch("http://localhost/api/v1/alerts", {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
@@ -59,7 +59,7 @@ export default function AlertsPage() {
   // UI updates locally without refetching the whole list
   const handleAcknowledge = async (id: string) => {
     try {
-      const res = await fetch(`/api/v1/alerts/${id}/acknowledge`, {
+      const res = await fetch(`http://localhost/api/v1/alerts/${id}/acknowledge`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,

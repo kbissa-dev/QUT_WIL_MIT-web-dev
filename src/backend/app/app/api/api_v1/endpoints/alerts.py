@@ -22,7 +22,7 @@ def serialize_alert(doc: dict):
     }
 
 
-@router.get("")
+@router.get("/")
 async def get_alerts(
     db: AgnosticDatabase = Depends(deps.get_db),
     current_user=Depends(deps.get_current_active_user),
