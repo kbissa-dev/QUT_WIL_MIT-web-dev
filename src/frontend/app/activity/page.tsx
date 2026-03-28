@@ -15,6 +15,7 @@ interface ActivityMessage {
   predicted_class?: number;
   predicted_action: string;
   confidence: number;
+  alert_id?: string;
   member: { id: string; name: string } | null;
   timestamp?: string;
 }
@@ -64,6 +65,7 @@ function UnsuspendedActivityPage() {
             // NEW: dispatch alert on fall
             if (data.predicted_action === "fall" && data.member) {
               dispatch(setAlert({
+                alertId: data.alert_id || "",
                 memberName: data.member.name,
                 timestamp: timestamped.timestamp,
                 confidence: data.confidence,
