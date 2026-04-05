@@ -44,6 +44,26 @@ async def insert_fall_event(
         "timestamp": event_timestamp.isoformat(),
     }
 
+async def create_audit_log(
+    db: AgnosticDatabase,
+    action: str,
+    user: User,
+    metadata: dict,
+    status: str = "success",
+):
+    try:
+        audit_doc = {
+            "action": action,
+            "user_id": str(user.id) if getattr(user, "id", None) else "",
+            "user_email": getattr(user, "email", ""),
+            "status": status,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            **metadata,
+        }
+        await db["audit_logs"].insert_one(audit_doc)
+    except Exception as e:
+        print(f"Audit log failed: {e}")
+
 
 @router.post("/{member_id}")
 async def predict_mock(
@@ -58,18 +78,23 @@ async def predict_mock(
     """
     import random
 
+
     predicted_class = FALL_ACTIVITY_CLASS
     is_fall = predicted_class == FALL_ACTIVITY_CLASS
 
     result = {
         "predicted_class": predicted_class,
         "predicted_action": "fall" if is_fall else "no_fall",
-        "confidence": round(random.uniform(0.85, 0.97), 2)
+        "confidence": round(random.uniform(0.75, 0.97), 2)
         if is_fall
         else round(random.uniform(0.70, 0.89), 2),
         "alert_id": None,
         "timestamp": None,
     }
+    should_trigger_alert = (
+        result["predicted_action"] == "fall" and result["confidence"] >= 0.80
+    )
+    result["should_trigger_alert"] = should_trigger_alert
 
     member_name = None
 
@@ -84,8 +109,8 @@ async def predict_mock(
     else:
         result["member"] = None
 
-    # Save to MongoDB if fall detected
-    if is_fall:
+    # Save to MongoDB only if threshold passes
+    if should_trigger_alert:
         alert_meta = await insert_fall_event(
             db=db,
             member_id=str(member_id),
@@ -97,7 +122,28 @@ async def predict_mock(
 
         print(
             f"Fall event saved to MongoDB for member {member_id}, alert_id={result['alert_id']}"
+        )     
+    else:
+        print(
+            f"No alert created. predicted_action={result['predicted_action']}, "
+            f"confidence={result['confidence']}, should_trigger_alert={should_trigger_alert}"
         )
+    if result["timestamp"] is None:
+        result["timestamp"] = datetime.now(timezone.utc).isoformat()
+    
+    await create_audit_log(
+        db=db,
+        action="predict_requested",
+        user=current_user,
+        metadata={
+            "member_id": str(member_id),
+            "member_name": member_name,
+            "predicted_action": result["predicted_action"],
+            "confidence": result["confidence"],
+            "alert_id": result["alert_id"],
+            "should_trigger_alert": result["should_trigger_alert"],
+        },
+    )
 
     # Broadcast to WebSocket
     await broadcast_prediction(result)

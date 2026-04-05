@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from motor.core import AgnosticDatabase
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 from app.api import deps
 from app.api.deps import get_current_active_user
+from app.models.user import User
 
 router = APIRouter()
 
@@ -20,6 +21,25 @@ def serialize_alert(doc: dict):
         "acknowledged_at": doc.get("acknowledged_at").isoformat() if doc.get("acknowledged_at") else None,
         "acknowledged_by": doc.get("acknowledged_by"),
     }
+async def create_audit_log(
+    db: AgnosticDatabase,
+    action: str,
+    user: User,
+    metadata: dict,
+    status: str = "success",
+):
+    try:
+        audit_doc = {
+            "action": action,
+            "user_id": str(user.id) if getattr(user, "id", None) else "",
+            "user_email": getattr(user, "email", ""),
+            "status": status,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            **metadata,
+        }
+        await db["audit_logs"].insert_one(audit_doc)
+    except Exception as e:
+        print(f"Audit log failed: {e}")
 
 
 @router.get("/")
@@ -56,4 +76,15 @@ async def acknowledge_alert(
     )
 
     updated = await db["fall_events"].find_one({"_id": ObjectId(alert_id)})
+    await create_audit_log(
+        db=db,
+        action="alert_acknowledged",
+        user=current_user,
+        metadata={
+            "alert_id": alert_id,
+            "member_id": updated.get("member_id"),
+            "member_name": updated.get("member_name"),
+            "acknowledged_by": getattr(current_user, "email", "unknown"),
+        },
+    )
     return {"status": "ok", "alert": serialize_alert(updated)}

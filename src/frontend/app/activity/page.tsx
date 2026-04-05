@@ -16,6 +16,7 @@ interface ActivityMessage {
   predicted_action: string;
   confidence: number;
   alert_id?: string;
+  should_trigger_alert?: boolean;
   member: { id: string; name: string } | null;
   timestamp?: string;
 }
@@ -59,15 +60,15 @@ function UnsuspendedActivityPage() {
         ws.onmessage = (event) => {
           try {
             const data: ActivityMessage = JSON.parse(event.data);
-            const timestamped = { ...data, timestamp: new Date().toISOString() };
+            const timestamped = { ...data, timestamp: data.timestamp || new Date().toISOString() };
             setMessages((prev) => [timestamped, ...prev]);
 
-            // NEW: dispatch alert on fall
-            if (data.predicted_action === "fall" && data.member) {
+            // Dispatch alert on only when backend confirms it is a real alert
+            if (data.should_trigger_alert && data.alert_id && data.member) {
               dispatch(setAlert({
                 alertId: data.alert_id || "",
                 memberName: data.member.name,
-                timestamp: timestamped.timestamp,
+                timestamp: data.timestamp || timestamped.timestamp,
                 confidence: data.confidence,
               }));
             }

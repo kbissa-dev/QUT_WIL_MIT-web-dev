@@ -10,6 +10,7 @@ type FallWsMessage = {
   predicted_action?: string;
   confidence?: number;
   timestamp?: string;
+  should_trigger_alert?: boolean;
   member?: {
     id?: string;
     name?: string;
@@ -99,10 +100,10 @@ export default function FallAlertBanner() {
         try {
           const data: FallWsMessage = JSON.parse(event.data);
 
-          if (data.predicted_action === "fall") {
+          if (data.should_trigger_alert && data.alert_id) {
             if (!data.alert_id) {
               console.warn(
-                "Fall event received without alert_id. Banner ack cannot persist."
+                "Impossible state: backend said trigger alert, but  alert_id is missing. Banner ack cannot persist."
               );
             }
 
